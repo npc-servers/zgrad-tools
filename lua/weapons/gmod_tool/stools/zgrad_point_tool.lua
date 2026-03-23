@@ -13,11 +13,24 @@ if SERVER then
         return ply:IsAdmin() or ply:IsSuperAdmin() or ply:GetUserGroup() == "operator"
     end
 
-    hook.Add( "CanTool", "ZGPTBypassCanTool", function( ply, tr, toolname )
+    hook.Add( "CanTool", "ZGrad_PointToolCanTool", function( ply, tr, toolname )
         if toolname == "zgrad_point_tool" then
             return IsAuthorized( ply ) or nil
         end
     end )
+
+    local function PointToolClearSelect( ply )
+        if ply.ZGrad then ply.ZGrad.ptSelect = nil end
+    end
+
+    local function PointToolGetSelect( ply )
+        return ply.ZGrad and ply.ZGrad.ptSelect
+    end
+
+    local function PointToolSetSelect( ply, pointType, index )
+        ply.ZGrad = ply.ZGrad or {}
+        ply.ZGrad.ptSelect = { pointType = pointType, index = index }
+    end
 
     local function ChatTell( ply, msg )
         if IsValid( ply ) then ply:ChatPrint( msg ) end
@@ -31,7 +44,7 @@ if SERVER then
     end
 
     local function DataKeyForType( shortName )
-        for k, info in pairs( SpawnPointsList ) do
+        for k, info in pairs( ZGRAD.SpawnPointsList ) do
             if info[1] == shortName then return k end
         end
     end
@@ -44,10 +57,10 @@ if SERVER then
         end
 
         local point = { pos, ang, tonumber( pointNum ) }
-        table.insert( SpawnPointsList[dataKey][3], point )
-        WriteDataMap( dataKey, SpawnPointsList[dataKey][3] )
+        table.insert( ZGRAD.SpawnPointsList[dataKey][3], point )
+        ZGRAD.WriteDataMap( dataKey, ZGRAD.SpawnPointsList[dataKey][3] )
 
-        SendSpawnPoint()
+        ZGRAD.SendSpawnPoint()
         ChatTellAll( ply, "added a " .. pointType .. " point to the map." )
     end
 
@@ -55,7 +68,7 @@ if SERVER then
         local dataKey = DataKeyForType( pointType )
         if not dataKey then return end
 
-        local pts = SpawnPointsList[dataKey][3]
+        local pts = ZGRAD.SpawnPointsList[dataKey][3]
         if not pts[index] then return end
 
         if pts[index][4] then
@@ -64,9 +77,9 @@ if SERVER then
         end
 
         table.remove( pts, index )
-        WriteDataMap( dataKey, pts )
+        ZGRAD.WriteDataMap( dataKey, pts )
 
-        SendSpawnPoint()
+        ZGRAD.SendSpawnPoint()
         ChatTellAll( ply, "removed " .. pointType .. " point #" .. index .. " from the map." )
     end
 
@@ -74,7 +87,7 @@ if SERVER then
         local dataKey = DataKeyForType( pointType )
         if not dataKey then return end
 
-        local pts = SpawnPointsList[dataKey][3]
+        local pts = ZGRAD.SpawnPointsList[dataKey][3]
         if not pts[index] then return end
 
         if pts[index][4] then
@@ -84,9 +97,9 @@ if SERVER then
 
         pts[index][1] = newPos
         pts[index][2] = newAng
-        WriteDataMap( dataKey, pts )
+        ZGRAD.WriteDataMap( dataKey, pts )
 
-        SendSpawnPoint()
+        ZGRAD.SendSpawnPoint()
         ChatTellAll( ply, "moved " .. pointType .. " point #" .. index .. "." )
     end
 
@@ -105,13 +118,13 @@ if SERVER then
             DoAdd( ply, pointType, pos, ang, pointNum )
 
         elseif mode == "select" then
-            local sel = ply.ZGPTSelected
+            local sel = PointToolGetSelect( ply )
             if sel then
                 local placeMode = self:GetClientInfo( "place_mode" )
                 local newPos    = ( placeMode == "self" ) and ply:GetPos() or ( trace.HitPos + Vector( 0, 0, 5 ) )
                 local newAng    = Angle( 0, ply:EyeAngles().y, 0 )
                 DoMove( ply, sel.pointType, sel.index, newPos, newAng )
-                ply.ZGPTSelected = nil
+                PointToolClearSelect( ply )
             end
         end
 
@@ -125,10 +138,10 @@ if SERVER then
         local mode = self:GetClientInfo( "mode" )
 
         if mode == "select" then
-            local sel = ply.ZGPTSelected
+            local sel = PointToolGetSelect( ply )
             if sel then
                 DoRemove( ply, sel.pointType, sel.index )
-                ply.ZGPTSelected = nil
+                PointToolClearSelect( ply )
             end
         end
 
@@ -136,12 +149,12 @@ if SERVER then
     end
 
     function TOOL:Reload( trace )
-        self:GetOwner().ZGPTSelected = nil
+        PointToolClearSelect( self:GetOwner() )
         return true
     end
 
     function TOOL:Holster()
-        self:GetOwner().ZGPTSelected = nil
+        PointToolClearSelect( self:GetOwner() )
     end
 
     util.AddNetworkString( "zgrad_pt_select" )
@@ -155,7 +168,7 @@ if SERVER then
 
         local dataKey = DataKeyForType( pointType )
         if dataKey then
-            local pts = SpawnPointsList[dataKey] and SpawnPointsList[dataKey][3]
+            local pts = ZGRAD.SpawnPointsList[dataKey] and ZGRAD.SpawnPointsList[dataKey][3]
             if not pts or not pts[index] or pts[index][4] then
                 net.Start( "zgrad_pt_select_deny" )
                 net.Send( ply )
@@ -163,7 +176,7 @@ if SERVER then
             end
         end
 
-        ply.ZGPTSelected = { pointType = pointType, index = index }
+        PointToolSetSelect( ply, pointType, index )
 
         net.Start( "zgrad_pt_select" )
             net.WriteString( pointType )
@@ -261,7 +274,7 @@ if CLIENT then
         local typeVal     = currentType and currentType:GetString() or "red"
 
         local sorted = {}
-        for _, info in pairs( SpawnPointsList or {} ) do
+        for _, info in pairs( ZGRAD.SpawnPointsList or {} ) do
             sorted[#sorted + 1] = info[1]
         end
         table.sort( sorted )

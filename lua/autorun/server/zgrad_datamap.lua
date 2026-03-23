@@ -1,15 +1,14 @@
-if WriteDataMap then return end
-
 ZGRAD = ZGRAD or {}
+if ZGRAD.WriteDataMap then return end
 
 local mapDir = "zgrad/maps"
 
 file.CreateDir( "zgrad" )
 file.CreateDir( mapDir )
 
-SpawnPointsPage = SpawnPointsPage or 1
+ZGRAD.SpawnPointsPage = ZGRAD.SpawnPointsPage or 1
 
-SpawnPointsList = {
+ZGRAD.SpawnPointsList = {
     spawnpointhmcd = {"hmcd",Color(150,150,150)},
     spawnpointst = {"red",Color(255,0,0)},
     spawnpointsct = {"blue",Color(0,0,255)},
@@ -54,7 +53,7 @@ SpawnPointsList = {
 }
 
 local function GetDataMapName( name, localToDataFolder )
-    local dataPath = mapDir .. "/" .. name .. "/" .. game.GetMap() .. ( SpawnPointsPage == 1 and "" or SpawnPointsPage ) .. ".txt"
+    local dataPath = mapDir .. "/" .. name .. "/" .. game.GetMap() .. ( ZGRAD.SpawnPointsPage == 1 and "" or ZGRAD.SpawnPointsPage ) .. ".txt"
     dataPath = localToDataFolder and dataPath or "data/" .. dataPath
 
     return dataPath
@@ -92,7 +91,7 @@ local function ParseAngle( a )
     return Angle()
 end
 
-function ReadDataMap( name )
+function ZGRAD.ReadDataMap( name )
     local raw = util.JSONToTable( file.Read( GetDataMapName( name ), "GAME" ) or "" ) or {}
     local out = {}
     for _, pt in ipairs( raw ) do
@@ -107,7 +106,7 @@ function ReadDataMap( name )
     return out
 end
 
-function WriteDataMap( name, data )
+function ZGRAD.WriteDataMap( name, data )
     file.CreateDir( mapDir .. "/" .. name )
     local serialized = {}
     for _, pt in ipairs( data or {} ) do
@@ -124,8 +123,8 @@ function WriteDataMap( name, data )
 end
 
 local function SetupSpawnPointsList()
-    for name, info in pairs( SpawnPointsList ) do
-        info[3] = ReadDataMap( name )
+    for name, info in pairs( ZGRAD.SpawnPointsList ) do
+        info[3] = ZGRAD.ReadDataMap( name )
     end
 end
 
@@ -133,69 +132,69 @@ SetupSpawnPointsList()
 
 local function ReadMapEntities()
     for _, ent in ipairs( ents.FindByClass( "zgr_spawn_boxspawn" ) ) do
-        table.insert( SpawnPointsList.boxspawn[3], { ent:GetPos(), ent:GetAngles(), false, true } )
+        table.insert( ZGRAD.SpawnPointsList.boxspawn[3], { ent:GetPos(), ent:GetAngles(), false, true } )
     end
 
     for _, ent in ipairs( ents.FindByClass( "zgr_control_point" ) ) do
         local idx = tonumber( ent:GetKeyValues()["pointindex"] ) or 1
-        table.insert( SpawnPointsList.controlpoint[3], { ent:GetPos(), ent:GetAngles(), idx, true } )
+        table.insert( ZGRAD.SpawnPointsList.controlpoint[3], { ent:GetPos(), ent:GetAngles(), idx, true } )
     end
 
     for _, class in ipairs({ "info_player_terrorist", "info_player_rebel", "zgr_spawn_red" }) do
         for _, ent in ipairs( ents.FindByClass( class ) ) do
-            table.insert( SpawnPointsList.spawnpointst[3], { ent:GetPos(), ent:GetAngles(), false, true } )
+            table.insert( ZGRAD.SpawnPointsList.spawnpointst[3], { ent:GetPos(), ent:GetAngles(), false, true } )
         end
     end
 
     for _, class in ipairs({ "info_player_counterterrorist", "info_player_combine", "zgr_spawn_blue" }) do
         for _, ent in ipairs( ents.FindByClass( class ) ) do
-            table.insert( SpawnPointsList.spawnpointsct[3], { ent:GetPos(), ent:GetAngles(), false, true } )
+            table.insert( ZGRAD.SpawnPointsList.spawnpointsct[3], { ent:GetPos(), ent:GetAngles(), false, true } )
         end
     end
 
     for _, class in ipairs({ "info_player_start", "info_player_deathmatch", "zgr_spawn_deathmatch" }) do
         for _, ent in ipairs( ents.FindByClass( class ) ) do
-            table.insert( SpawnPointsList.spawnpointhmcd[3], { ent:GetPos(), ent:GetAngles(), false, true } )
+            table.insert( ZGRAD.SpawnPointsList.spawnpointhmcd[3], { ent:GetPos(), ent:GetAngles(), false, true } )
         end
     end
 end
 
-hook.Add( "InitPostEntity", "ZGPT_ReadMapSpawnEntities", function()
+hook.Add( "InitPostEntity", "ZGrad_ReadMapSpawnEntities_InitPostEntity", function()
     ReadMapEntities()
 end )
 
-hook.Add( "PostCleanupMap", "ZGPT_ReadMapSpawnEntities", function()
+hook.Add( "PostCleanupMap", "ZGrad_ReadMapSpawnEntities_PostCleanupMap", function()
     SetupSpawnPointsList()
     ReadMapEntities()
 end )
 
-util.AddNetworkString( "points" )
+util.AddNetworkString( "zgrad_spawn_points" )
 
-function SendSpawnPoint( ply )
-    net.Start( "points" )
-    net.WriteTable( SpawnPointsList )
+function ZGRAD.SendSpawnPoint( ply )
+    net.Start( "zgrad_spawn_points" )
+    net.WriteTable( ZGRAD.SpawnPointsList )
     if ply then net.Send( ply ) else net.Broadcast() end
 end
 
 function ZGRAD.AddSpawnPoint( caller, pointType, pointNumber )
-    local tbl = ReadDataMap( pointType )
+    local tbl = ZGRAD.ReadDataMap( pointType )
     local point = { caller:GetPos() + Vector( 0, 0, 5 ), Angle( 0, caller:EyeAngles()[2], 0 ), tonumber( pointNumber ) }
     table.insert( tbl, point )
-    WriteDataMap( pointType, tbl )
+    ZGRAD.WriteDataMap( pointType, tbl )
 
     SetupSpawnPointsList()
     ReadMapEntities()
-    SendSpawnPoint()
+    ZGRAD.SendSpawnPoint()
 end
 
 function ZGRAD.ResetSpawnPoints( pointType )
-    WriteDataMap( pointType )
+    ZGRAD.WriteDataMap( pointType )
 
     SetupSpawnPointsList()
     ReadMapEntities()
-    SendSpawnPoint()
+    ZGRAD.SendSpawnPoint()
 end
 
-hook.Add( "PlayerInitialSpawn", "ZGPT_SendSpawnPoints", function( ply )
-    SendSpawnPoint( ply )
+hook.Add( "PlayerInitialSpawn", "ZGrad_SendSpawnPoints", function( ply )
+    ZGRAD.SendSpawnPoint( ply )
 end )

@@ -46,7 +46,7 @@ local function RebuildCache()
     pointCache    = {}
     typeColorCache = {}
 
-    for dataKey, info in pairs( SpawnPointsList or {} ) do
+    for dataKey, info in pairs( ZGRAD.SpawnPointsList or {} ) do
         local typeName   = info[1]
         local baseColor  = info[2]
         local pts        = info[3]
@@ -57,7 +57,7 @@ local function RebuildCache()
         if not pts then continue end
 
         for i, rawPt in ipairs( pts ) do
-            local p = ReadPoint( rawPt )
+            local p = ZGRAD.ReadPoint( rawPt )
             if not p then continue end
 
             pointCache[#pointCache + 1] = {
@@ -75,7 +75,7 @@ local function RebuildCache()
 end
 
 local function DataKeyForShortName( shortName )
-    for k, info in pairs( SpawnPointsList or {} ) do
+    for k, info in pairs( ZGRAD.SpawnPointsList or {} ) do
         if info[1] == shortName then return k end
     end
 end
@@ -85,13 +85,13 @@ net.Receive( "zgrad_pt_select", function()
     local index     = net.ReadUInt( 16 )
 
     local key  = DataKeyForShortName( pointType )
-    local info = key and SpawnPointsList and SpawnPointsList[key]
+    local info = key and ZGRAD.SpawnPointsList and ZGRAD.SpawnPointsList[key]
     if not info then return end
 
     local pts = info[3]
     if not pts or not pts[index] then return end
 
-    local p = ReadPoint( pts[index] )
+    local p = ZGRAD.ReadPoint( pts[index] )
     selectedPoint = {
         pointType = pointType,
         index     = index,
@@ -102,7 +102,7 @@ end )
 
 net.Receive( "zgrad_pt_select_deny", function()
     surface.PlaySound( "buttons/button10.wav" )
-    chat.AddText( Color( 255, 80, 80 ), "[Point tool]", color_white, " Cannot select Hammer-placed points." )
+    chat.AddText( Color( 255, 80, 80 ), "[ZGRAD]", color_white, " Cannot select Hammer-placed points." )
 end )
 
 local function IsToolActive()
@@ -357,7 +357,7 @@ local function DrawScreenLabels()
     end
 end
 
-hook.Add( "PlayerButtonDown", "ZGPTSelectInput", function( ply, button )
+hook.Add( "PlayerButtonDown", "ZGrad_PointToolSelectInput", function( ply, button )
     if ply ~= LocalPlayer() then return end
     if not IsToolActive() then return end
     if button ~= MOUSE_LEFT then return end
@@ -373,14 +373,14 @@ hook.Add( "PlayerButtonDown", "ZGPTSelectInput", function( ply, button )
     net.SendToServer()
 end )
 
-hook.Add( "PlayerButtonDown", "ZGPTDeselect", function( ply, button )
+hook.Add( "PlayerButtonDown", "ZGrad_PointToolDeselect", function( ply, button )
     if ply ~= LocalPlayer() then return end
     if not IsToolActive() then return end
     if button ~= KEY_R then return end
     selectedPoint = nil
 end )
 
-hook.Add( "WeaponEquipped", "ZGPTClearOnSwitch", function( wep, ply )
+hook.Add( "WeaponEquipped", "ZGrad_PointToolClearOnSwitch", function( wep, ply )
     if not IsValid( ply ) or ply ~= LocalPlayer() then return end
     if IsValid( wep ) and wep:GetClass() ~= "gmod_tool" then
         selectedPoint = nil
@@ -388,13 +388,13 @@ hook.Add( "WeaponEquipped", "ZGPTClearOnSwitch", function( wep, ply )
     end
 end )
 
-hook.Add( "ZGrad_SpawnPointsUpdated", "ZGPTClearOnUpdate", function()
+hook.Add( "ZGrad_SpawnPointsUpdated", "ZGrad_ClearOnSpawnPointsUpdate", function()
     selectedPoint = nil
     hoveredPoint  = nil
     RebuildCache()
 end )
 
-hook.Add( "PostDrawTranslucentRenderables", "ZGPTDraw3D", function( bDepth, bSkybox )
+hook.Add( "PostDrawTranslucentRenderables", "ZGrad_PointToolDraw3D", function( bDepth, bSkybox )
     if bDepth or bSkybox then return end
     if not IsToolActive() then return end
 
@@ -410,7 +410,7 @@ hook.Add( "PostDrawTranslucentRenderables", "ZGPTDraw3D", function( bDepth, bSky
     DrawGhostPreview()
 end )
 
-hook.Add( "HUDPaint", "ZGPTDraw2D", function()
+hook.Add( "HUDPaint", "ZGrad_PointToolDraw2D", function()
     if not IsToolActive() then return end
 
     DrawScreenLabels()
