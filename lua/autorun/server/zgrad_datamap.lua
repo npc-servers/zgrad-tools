@@ -169,12 +169,83 @@ hook.Add( "PostCleanupMap", "ZGrad_ReadMapSpawnEntities_PostCleanupMap", functio
 end )
 
 util.AddNetworkString( "zgrad_spawn_points" )
+util.AddNetworkString( "zgrad_spawn_points_request" )
+
+local NET_CHUNK_SIZE = 32768
+
+local function BuildSendPayload()
+    local out = {}
+    for dataKey, info in pairs( ZGRAD.SpawnPointsList ) do
+        local color = info[2]
+        local pts   = info[3] or {}
+        local serializedPts = {}
+
+        for _, pt in ipairs( pts ) do
+            local read = ZGRAD.ReadPoint( pt )
+            if not read then continue end
+
+            local pos = read[1]
+            local ang = read[2]
+            serializedPts[#serializedPts + 1] = {
+                px = pos.x, py = pos.y, pz = pos.z,
+                ap = ang.p, ay = ang.y, ar = ang.r,
+                n  = read[3],
+                h  = pt[4] == true or nil,
+            }
+        end
+
+        out[dataKey] = {
+            t = info[1],
+            c = { color.r, color.g, color.b, color.a or 255 },
+            p = serializedPts,
+        }
+    end
+
+    return util.Compress( util.TableToJSON( out ) or "" ) or ""
+end
 
 function ZGRAD.SendSpawnPoint( ply )
-    net.Start( "zgrad_spawn_points" )
-    net.WriteTable( ZGRAD.SpawnPointsList )
-    if ply then net.Send( ply ) else net.Broadcast() end
+    local payload = BuildSendPayload()
+    local total   = #payload
+
+    local sendOne = function( target, offset )
+        local remaining = total - offset
+        local chunk     = math.min( NET_CHUNK_SIZE, remaining )
+        local last      = ( offset + chunk ) >= total
+
+        net.Start( "zgrad_spawn_points" )
+            net.WriteUInt( total,       32 )
+            net.WriteUInt( offset,      32 )
+            net.WriteUInt( chunk,       32 )
+            net.WriteBool( last )
+            net.WriteData( payload:sub( offset + 1, offset + chunk ), chunk )
+        if target then net.Send( target ) else net.Broadcast() end
+    end
+
+    local function sendAll( target )
+        if total == 0 then
+            net.Start( "zgrad_spawn_points" )
+                net.WriteUInt( 0, 32 )
+                net.WriteUInt( 0, 32 )
+                net.WriteUInt( 0, 32 )
+                net.WriteBool( true )
+            if target then net.Send( target ) else net.Broadcast() end
+            return
+        end
+
+        local offset = 0
+        while offset < total do
+            sendOne( target, offset )
+            offset = offset + NET_CHUNK_SIZE
+        end
+    end
+
+    sendAll( ply )
 end
+
+net.Receive( "zgrad_spawn_points_request", function( _, ply )
+    ZGRAD.SendSpawnPoint( ply )
+end )
 
 function ZGRAD.AddSpawnPoint( caller, pointType, pointNumber )
     local tbl = ZGRAD.ReadDataMap( pointType )
@@ -195,6 +266,3 @@ function ZGRAD.ResetSpawnPoints( pointType )
     ZGRAD.SendSpawnPoint()
 end
 
-hook.Add( "PlayerInitialSpawn", "ZGrad_SendSpawnPoints", function( ply )
-    ZGRAD.SendSpawnPoint( ply )
-end )
