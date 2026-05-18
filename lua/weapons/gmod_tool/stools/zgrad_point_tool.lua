@@ -200,6 +200,34 @@ if SERVER then
         ChatTellAll( ply, "added " .. n .. " " .. pointType .. " points to the map." )
     end
 
+    local function FindNearestPointToPos( pos, maxDist )
+        local list = ZGRAD.SpawnPointsList
+        if not list then return nil end
+
+        local bestDistSq = maxDist * maxDist
+        local best = nil
+
+        for dataKey, info in pairs( list ) do
+            local pts = info[3]
+            if not pts then continue end
+
+            for i = 1, #pts do
+                if pts[i][4] then continue end
+
+                local other = ZGRAD.ReadPoint( pts[i] )
+                if not other then continue end
+
+                local dSq = pos:DistToSqr( other[1] )
+                if dSq < bestDistSq then
+                    bestDistSq = dSq
+                    best = { dataKey = dataKey, typeName = info[1], index = i }
+                end
+            end
+        end
+
+        return best
+    end
+
     local function DoRemove( ply, pointType, index )
         local dataKey = DataKeyForType( pointType )
         if not dataKey then return end
@@ -313,14 +341,10 @@ if SERVER then
         local ply  = self:GetOwner()
         if not IsAuthorized( ply ) then return true end
 
-        local mode = self:GetClientInfo( "mode" )
-
-        if mode == "select" then
-            local sel = PointToolGetSelect( ply )
-            if sel then
-                DoRemove( ply, sel.pointType, sel.index )
-                PointToolClearSelect( ply )
-            end
+        local nearest = FindNearestPointToPos( trace.HitPos, 192 )
+        if nearest then
+            DoRemove( ply, nearest.typeName, nearest.index )
+            PointToolClearSelect( ply )
         end
 
         return true
