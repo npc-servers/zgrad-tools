@@ -40,6 +40,9 @@ ZGRAD.SpawnPointsList = {
     glide_zg_ah64d = {"glide_zg_ah64d",Color(200,255,200)},
     glide_zg_humvee = {"glide_zg_humvee",Color(200,255,200)},
     glide_zg_humvee_m2 = {"glide_zg_humvee_m2",Color(200,255,200)},
+    glide_zg_rhib_m2 = {"glide_zg_rhib_m2",Color(200,255,200)},
+    glide_zg_rhib_m249 = {"glide_zg_rhib_m249",Color(200,255,200)},
+
     gtav_insurgent = {"gtav_insurgent",Color(200,255,200)},
     gtav_police_cruiser = {"gtav_police_cruiser",Color(200,255,200)},
     gtav_speedo = {"gtav_speedo",Color(200,255,200)},
