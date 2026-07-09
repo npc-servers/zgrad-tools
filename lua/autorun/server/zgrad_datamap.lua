@@ -34,6 +34,9 @@ ZGRAD.SpawnPointsList = {
     jailbreak = {"jailbreak",Color(0,125,0)},
     jailbreak_doors = {"jailbreak_doors",Color(255,0,0)},
 
+    vehiclespawnt = { "vehiclespawnt", Color( 255, 0, 0 ) },
+    vehiclespawnct = { "vehiclespawnct", Color( 0, 0, 255 ) },
+
     glide_zg_conscript_apc = {"glide_zg_conscript_apc",Color(200,255,200)},
     glide_zg_technical_kord = {"glide_zg_technical_kord",Color(200,255,200)},
     glide_zg_technical = {"glide_zg_technical",Color(200,255,200)},
